@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Environments
+.env
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Model checkpoints (too large for git)
+checkpoints/*.pth
+checkpoints/*.pkl
+
+# Results / generated videos
+results/
+
+# Mac
+.DS_Store
+
+# Large sample files
+samples/audio/*.wav
+samples/images/*.jpg
+samples/images/*.png

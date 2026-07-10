@@ -1,0 +1,13 @@
+torch>=2.0.0
+torchvision
+torchaudio
+opencv-python
+numpy
+librosa
+scipy
+mediapipe
+face-alignment
+tqdm
+matplotlib
+Pillow
+gdown
