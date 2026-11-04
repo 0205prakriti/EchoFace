@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EchoFace: dub your video, lips included</title>
+<meta name="description" content="Upload a short video, pick a language, and get it back dubbed with lip movements that match. Join the early access list.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout concept: a video editor's timeline as the hero motif. Original track above, dubbed track below, one playhead through both. */
+:root {
+  --bg: #F4F6F8;
+  --surface: #FFFFFF;
+  --ink: #121826;
+  --muted: #55607A;
+  --line: #D9DEE6;
+  --slate: #FFC93C;      /* clapperboard yellow, used only for highlights and the playhead */
+  --slate-ink: #3A2A00;
+  --link: #2447D6;
+  --track-a: #8FA0BD;
+  --track-b: #121826;
+  --ok: #17794B;
+  --err: #B3261E;
+  --display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E131D; --surface: #161D2A; --ink: #EEF1F6; --muted: #A2ADC4; --line: #2A3344;
+    --slate: #FFC93C; --slate-ink: #2B1F00; --link: #8CA4FF; --track-a: #5C6B88; --track-b: #EEF1F6;
+    --ok: #5CD395; --err: #FF8A80; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E131D; --surface: #161D2A; --ink: #EEF1F6; --muted: #A2ADC4; --line: #2A3344;
+  --slate: #FFC93C; --slate-ink: #2B1F00; --link: #8CA4FF; --track-a: #5C6B88; --track-b: #EEF1F6;
+  --ok: #5CD395; --err: #FF8A80; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 400 1.0625rem/1.6 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 68rem; margin: 0 auto; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.08; margin: 0; text-wrap: balance; letter-spacing: -0.02em; }
+a { color: var(--link); }
+:focus-visible { outline: 3px solid var(--link); outline-offset: 3px; border-radius: 4px; }
+
+header.top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 1.25rem; }
+.brand { font: 700 1.25rem var(--display); letter-spacing: -0.02em; text-decoration: none; color: var(--ink); }
+.brand span { background: var(--slate); color: var(--slate-ink); padding: 0 .3em; border-radius: 3px; }
+.top a.cta-link { font: 500 .9rem var(--body); text-decoration: none; border-bottom: 2px solid var(--slate); color: var(--ink); }
+
+.hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 3rem; padding-block: 2.5rem 4rem; align-items: center; }
+.eyebrow { font: 500 .8rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 1rem; }
+.hero h1 { font-size: clamp(2.5rem, 6.4vw, 4.5rem); font-weight: 700; }
+.hero h1 mark { background: linear-gradient(transparent 62%, var(--slate) 62%); color: inherit; padding: 0 .06em; }
+.lede { font-size: 1.2rem; color: var(--muted); max-width: 34rem; margin: 1.25rem 0 0; }
+
+form.signup { margin-top: 2rem; display: grid; gap: .9rem; max-width: 32rem; }
+.field { display: grid; gap: .35rem; }
+label { font: 600 .85rem var(--body); }
+input, select {
+  font: inherit; color: var(--ink); background: var(--surface);
+  border: 1.5px solid var(--line); border-radius: 8px; padding: .75rem .9rem; width: 100%; min-width: 0;
+}
+input::placeholder { color: var(--muted); opacity: .8; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
+button.go {
+  font: 600 1.05rem var(--body); background: var(--ink); color: var(--bg); border: 0; border-radius: 8px;
+  padding: .9rem 1.2rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: .6rem;
+}
+button.go:hover { background: var(--link); color: #fff; }
+button.go[disabled] { opacity: .6; cursor: progress; }
+.fine { font-size: .85rem; color: var(--muted); margin: 0; }
+#status { min-height: 1.5em; font-weight: 500; margin: 0; }
+#status.ok { color: var(--ok); }
+#status.err { color: var(--err); }
+
+/* timeline motif */
+.timeline { background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 1rem 1rem 1.25rem; position: relative; overflow: hidden; }
+.tl-head { display: flex; justify-content: space-between; font: 500 .78rem var(--mono); color: var(--muted); margin-bottom: .8rem; gap: .5rem; flex-wrap: wrap; }
+.track { display: grid; grid-template-columns: 3.2rem minmax(0, 1fr); align-items: center; gap: .6rem; margin-top: .55rem; }
+.track b { font: 500 .78rem var(--mono); color: var(--muted); }
+.wave { height: 54px; display: flex; align-items: center; gap: 2px; }
+.wave i { flex: 1; min-width: 1px; border-radius: 2px; background: var(--track-a); }
+.track.dub .wave i { background: var(--track-b); }
+.caption { font: 500 .8rem var(--mono); color: var(--muted); margin: .7rem 0 0 3.8rem; }
+.playhead { position: absolute; top: 0; bottom: 0; left: 58%; width: 2px; background: var(--slate); }
+.playhead::before { content: "00:00:12:08"; position: absolute; top: .45rem; left: .4rem; font: 500 .72rem var(--mono); background: var(--slate); color: var(--slate-ink); padding: .1rem .35rem; border-radius: 3px; white-space: nowrap; }
+
+section.block { padding-block: 4rem; border-top: 1.5px solid var(--line); }
+section.block h2 { font-size: clamp(1.8rem, 4vw, 2.6rem); max-width: 40rem; }
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2rem; margin-top: 2.5rem; padding: 0; list-style: none; counter-reset: s; }
+.steps li { counter-increment: s; }
+.steps li::before { content: "Step " counter(s); font: 500 .8rem var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: .6rem; }
+.steps h3 { font-size: 1.35rem; margin-bottom: .5rem; }
+.steps p { margin: 0; color: var(--muted); }
+
+.who { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; margin-top: 2.5rem; }
+.who article { background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 1.5rem; }
+.who h3 { font-size: 1.3rem; margin-bottom: .5rem; }
+.who p { margin: 0; color: var(--muted); }
+
+.trust { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 3rem; align-items: start; }
+.trust ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 1rem; }
+.trust li { padding-left: 1.6rem; position: relative; }
+.trust li::before { content: ""; position: absolute; left: 0; top: .6em; width: .75rem; height: .75rem; background: var(--slate); border-radius: 2px; }
+.trust li b { display: block; }
+.trust li span { color: var(--muted); }
+
+footer { border-top: 1.5px solid var(--line); padding-block: 2rem 3rem; color: var(--muted); font-size: .9rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+
+@media (max-width: 52rem) {
+  .hero, .trust { grid-template-columns: minmax(0, 1fr); gap: 2.5rem; }
+  .steps, .who { grid-template-columns: minmax(0, 1fr); }
+  .row2 { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="#"><span>Echo</span>Face</a>
+    <a class="cta-link" href="#join">Get early access</a>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">AI video dubbing with lip sync</p>
+        <h1>Your video, in their language. <mark>Lips included.</mark></h1>
+        <p class="lede">Upload a short video, pick a language, and get it back dubbed with mouth movements that match the new words. No editing software, no voice actors.</p>
+
+        <form class="signup" id="join" novalidate>
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label for="role">I make videos for</label>
+              <select id="role" name="role">
+                <option value="">Choose one</option>
+                <option>My own channel</option>
+                <option>My business</option>
+                <option>Clients</option>
+                <option>Courses or teaching</option>
+                <option>Something else</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="lang">Language I need</label>
+              <input id="lang" name="language" type="text" placeholder="e.g. Spanish" autocomplete="off">
+            </div>
+          </div>
+          <div class="field">
+            <label for="price">What would a 1-minute video be worth to you?</label>
+            <select id="price" name="price_expectation">
+              <option value="">Choose one</option>
+              <option>Under $2</option>
+              <option>$2 to $5</option>
+              <option>$5 to $10</option>
+              <option>More than $10</option>
+            </select>
+          </div>
+          <button class="go" type="submit" id="submit">Join the early access list</button>
+          <p id="status" role="status" aria-live="polite"></p>
+          <p class="fine">Early users get their first video free. We email you about launch only, and you can opt out any time.</p>
+        </form>
+      </div>
+
+      <div class="timeline" role="img" aria-label="A video editing timeline showing an original audio track above a dubbed audio track, with a playhead marking the same moment in both.">
+        <div class="tl-head"><span>sample_demo.mp4</span><span>EN to ES</span></div>
+        <div class="track"><b>EN</b><div class="wave" id="waveA"></div></div>
+        <div class="track dub"><b>ES</b><div class="wave" id="waveB"></div></div>
+        <p class="caption">Same moment, new language, matching lips.</p>
+        <div class="playhead" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <section class="block" id="how">
+      <h2>From upload to dubbed video in three steps</h2>
+      <ol class="steps">
+        <li><h3>Upload your video</h3><p>Use a clip where the speaker's face is clear and facing the camera. Short videos work best.</p></li>
+        <li><h3>Choose a language</h3><p>Pick the language you want. We translate, generate the new voice, and match the lips.</p></li>
+        <li><h3>Preview and download</h3><p>Watch the result, then download it. Your first video is free while we are in early access.</p></li>
+      </ol>
+    </section>
+
+    <section class="block">
+      <h2>Made for people who already have videos worth sharing</h2>
+      <div class="who">
+        <article><h3>Creators</h3><p>Reach viewers who do not speak your language without re-recording anything. Keep your own face and your own pacing.</p></article>
+        <article><h3>Small businesses</h3><p>Turn one product demo or explainer into versions for every market you sell to, without a production budget.</p></article>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="trust">
+        <h2>Built to be used responsibly</h2>
+        <ul>
+          <li><b>You confirm consent.</b><span>You can only upload videos where you have the right to use the person's face and voice.</span></li>
+          <li><b>Clearly labeled.</b><span>Videos made with EchoFace are marked as AI-generated.</span></li>
+          <li><b>No public figures.</b><span>We do not allow impersonation, and you can report any video you think breaks these rules.</span></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>EchoFace is in early development.</span>
+    <a href="#join">Join the early access list</a>
+  </footer>
+</div>
+
+<script>
+/* 1) Paste your Formspree (or similar) form endpoint between the quotes, e.g. "https://formspree.io/f/abcdwxyz" */
+var FORM_ENDPOINT = "";
+
+/* Decorative waveforms: fixed seed so the page looks the same on every load. */
+(function () {
+  function rng(seed) { return function () { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; }
+  function draw(id, seed, bars) {
+    var el = document.getElementById(id), r = rng(seed), out = "";
+    for (var i = 0; i < bars; i++) {
+      var env = 0.35 + 0.65 * Math.abs(Math.sin(i / 7.5 + seed));
+      var h = Math.max(8, Math.round(54 * env * (0.35 + r() * 0.65)));
+      out += '<i style="height:' + h + 'px"></i>';
+    }
+    el.innerHTML = out;
+  }
+  draw("waveA", 11, 64);
+  draw("waveB", 29, 64);
+})();
+
+(function () {
+  var form = document.getElementById("join");
+  var status = document.getElementById("status");
+  var btn = document.getElementById("submit");
+  function say(msg, cls) { status.textContent = msg; status.className = cls || ""; }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var email = form.email.value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { say("Enter a valid email address so we can reach you.", "err"); form.email.focus(); return; }
+    if (!FORM_ENDPOINT) { say("The signup form is not connected yet. Set FORM_ENDPOINT in this page.", "err"); return; }
+    btn.disabled = true; say("Sending...");
+    fetch(FORM_ENDPOINT, { method: "POST", headers: { "Accept": "application/json" }, body: new FormData(form) })
+      .then(function (res) {
+        if (!res.ok) throw new Error("bad status");
+        form.reset(); say("You are on the list. We will email you when early access opens.", "ok");
+      })
+      .catch(function () { say("That did not go through. Check your connection and try again.", "err"); })
+      .then(function () { btn.disabled = false; });
+  });
+})();
+</script>
+</body>
+</html>
