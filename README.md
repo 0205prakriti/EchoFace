@@ -33,9 +33,15 @@ PyTorch · OpenCV · librosa · Wav2Lip · Google Colab (T4)
 EchoFace/
 ├── notebooks/    # Colab notebooks
 ├── src/          # preprocess / models / inference modules
+├── scripts/      # trace_shapes.py: runs random tensors through the models
+├── notes/        # architecture notes
+├── docs/         # early access landing page
 ├── samples/      # example outputs
 └── checkpoints/  # model weights (not tracked)
 ```
+
+## Licensing
+`src/models/` is adapted from [Wav2Lip](https://github.com/Rudrabha/Wav2Lip), which allows personal, research and non-commercial use only. It is included here for study. Any commercial version of EchoFace must not use it.
 
 ## Author
 [0205prakriti](https://github.com/0205prakriti)
