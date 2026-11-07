@@ -14,6 +14,8 @@ Ran pretrained Wav2Lip (GAN checkpoint) end-to-end on a Colab T4 GPU.
 
 **Notebook:** [`notebooks/01_wav2lip_baseline.ipynb`](notebooks/01_wav2lip_baseline.ipynb)
 
+**Your own photo and audio:** [`notebooks/02_wav2lip_own_photo.ipynb`](notebooks/02_wav2lip_own_photo.ipynb) runs on current Colab without pinning old `numpy` or `librosa`. It patches four lines in Wav2Lip instead.
+
 ### What I learned
 - Wav2Lip was written for Python 3.6–3.8. On Colab's Python 3.12, `librosa` breaks against newer `numpy` because of removed aliases like `np.complex`, so the environment needs patching or pinning.
 - Observations on sync quality and mouth sharpness: _add yours here after reviewing the output_
