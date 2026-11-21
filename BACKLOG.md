@@ -13,7 +13,7 @@ A scheduled run picks the **first unchecked item** below, builds it, tests it, t
 - Do not touch `docs/` (the landing page), accounts, payments, or anything outside this repo.
 
 ## Queue
-- [ ] **1. Patch module with tests.** Move the notebook's Wav2Lip patch code into `src/inference/patch_wav2lip.py` (idempotent, fails loudly on unexpected code). Tests run it twice on a fixture copy of the relevant lines.
+- [x] **1. Patch module with tests.** Move the notebook's Wav2Lip patch code into `src/inference/patch_wav2lip.py` (idempotent, fails loudly on unexpected code). Tests run it twice on a fixture copy of the relevant lines.
 - [ ] **2. One-command runner.** `python -m src.inference.run --photo P --audio A --out O [--smooth 0.7]`: pins and clones Wav2Lip if missing, applies the patch, cleans the inputs (plain file names, 16 kHz mono audio, first 30 s), runs inference without a shell. `--dry-run` prints the command. Tests cover awkward file names and the dry run.
 - [ ] **3. CI.** GitHub Actions workflow that installs the CPU dependencies and runs the tests on every push.
 - [ ] **4. Audio check.** `src/preprocess/audio_check.py` warns when audio looks like music or noise instead of speech, is clipped, too quiet, or too long. Tests use synthetic signals.
