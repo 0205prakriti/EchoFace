@@ -83,3 +83,15 @@ def test_check_photo_combines_both_kinds():
 def test_default_detector_finds_no_face_in_noise():
     assert photo_check.haar_detector(_textured()) in ([], None)
 
+
+def test_cli_prints_warnings(tmp_path, capsys):
+    import cv2
+    path = tmp_path / "flat.png"
+    cv2.imwrite(str(path), np.full((480, 640, 3), 128, np.uint8))
+    assert photo_check.main([str(path)]) == 0
+    assert "warning [blurry]" in capsys.readouterr().out
+
+
+def test_cli_reports_unreadable_file(tmp_path, capsys):
+    assert photo_check.main([str(tmp_path / "missing.jpg")]) == 2
+    assert "could not read" in capsys.readouterr().err

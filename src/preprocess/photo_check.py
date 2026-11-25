@@ -105,3 +105,22 @@ def check_photo(img, detector=haar_detector):
     """All checks: pixels first, then faces."""
     return check_image(img) + check_faces(img, detector)
 
+
+def main(argv=None):
+    p = argparse.ArgumentParser(description="Check a photo before lip sync.")
+    p.add_argument("photo", help="path to an image file")
+    args = p.parse_args(argv)
+    img = cv2.imread(args.photo)
+    if img is None:
+        print(f"error: could not read image: {args.photo}", file=sys.stderr)
+        return 2
+    warnings = check_photo(img)
+    for w in warnings:
+        print(f"warning [{w.code}]: {w.message}")
+    if not warnings:
+        print("no warnings")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
