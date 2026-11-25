@@ -70,3 +70,38 @@ def check_image(img):
     elif mean > BRIGHT_MEAN or float((gray >= CLIP_LEVEL).mean()) > CLIP_FRACTION:
         out.append(PhotoWarning("overexposed", "Photo is overexposed; details are washed out."))
     return out
+
+
+def haar_detector(img):
+    """Default face detector: OpenCV's Haar cascade. Returns a list of boxes.
+
+    Returns None when the cascade file is not available, so the caller can skip
+    the face check instead of reporting a false "no face".
+    """
+    path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+    cascade = cv2.CascadeClassifier(path)
+    if cascade.empty():
+        return None
+    gray = np.clip(_gray(img), 0, 255).astype(np.uint8)
+    boxes = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(48, 48))
+    return [tuple(int(v) for v in b) for b in boxes]
+
+
+def check_faces(img, detector=haar_detector):
+    """Warn about no face or several faces. `detector(img)` returns a list of boxes
+    (any items), or None if it could not run, in which case nothing is reported."""
+    boxes = detector(img)
+    if boxes is None:
+        return []
+    if len(boxes) == 0:
+        return [PhotoWarning("no_face", "No face found; use a clear, front-facing photo.")]
+    if len(boxes) > 1:
+        return [PhotoWarning(
+            "many_faces", f"{len(boxes)} faces found; only one person should be in the photo.")]
+    return []
+
+
+def check_photo(img, detector=haar_detector):
+    """All checks: pixels first, then faces."""
+    return check_image(img) + check_faces(img, detector)
+

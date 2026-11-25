@@ -53,3 +53,33 @@ def test_grayscale_input_works():
 def test_size_does_not_change_blur_verdict():
     big = _textured(h=1500, w=2000)
     assert "blurry" not in _codes(big)
+
+
+def _face_codes(boxes):
+    return {w.code for w in photo_check.check_faces(_textured(), lambda img: boxes)}
+
+
+def test_one_face_has_no_warning():
+    assert _face_codes([(10, 10, 100, 100)]) == set()
+
+
+def test_no_face_is_flagged():
+    assert _face_codes([]) == {"no_face"}
+
+
+def test_several_faces_are_flagged():
+    assert _face_codes([(0, 0, 50, 50), (100, 0, 50, 50)]) == {"many_faces"}
+
+
+def test_detector_that_cannot_run_reports_nothing():
+    assert _face_codes(None) == set()
+
+
+def test_check_photo_combines_both_kinds():
+    codes = {w.code for w in photo_check.check_photo(_textured(mean=20), lambda img: [])}
+    assert codes == {"too_dark", "no_face"}
+
+
+def test_default_detector_finds_no_face_in_noise():
+    assert photo_check.haar_detector(_textured()) in ([], None)
+
