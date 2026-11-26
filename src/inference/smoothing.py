@@ -75,3 +75,19 @@ def one_euro(frames, rate=25.0, min_cutoff=1.0, beta=0.05, d_cutoff=1.0):
     frames = np.asarray(frames, dtype=np.float32)
     f = OneEuroFilter(rate, min_cutoff, beta, d_cutoff)
     return np.stack([f(x) for x in frames]) if len(frames) else frames.copy()
+
+
+def jitter_metrics(frames):
+    """Same measures as scripts/measure_mouth_jitter.py, for an array of frames.
+
+    jitter: mean absolute change between neighbouring frames.
+    accel: mean absolute second difference (spikes read as flicker).
+    motion: standard deviation of each pixel over the clip (how far the mouth really moves).
+    """
+    frames = np.asarray(frames, dtype=np.float32)
+    if len(frames) < 3:
+        raise ValueError("need at least 3 frames")
+    jitter = float(np.abs(np.diff(frames, axis=0)).mean())
+    accel = float(np.abs(np.diff(frames, n=2, axis=0)).mean())
+    motion = float(frames.std(axis=0).mean())
+    return {"jitter": jitter, "accel": accel, "motion": motion, "ratio": jitter / motion if motion else float("inf")}
