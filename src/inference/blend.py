@@ -57,3 +57,33 @@ def feather_paste(frame, patch, box, feather=8):
         mixed = np.clip(mixed, np.iinfo(frame.dtype).min, np.iinfo(frame.dtype).max)
     out[y1:y2, x1:x2] = mixed.astype(frame.dtype)
     return out
+
+
+def seam_metric(frame, box):
+    """How visible the border of ``box`` = (y1, y2, x1, x2) is in ``frame``.
+
+    ``step`` is the mean absolute difference between the pixels just inside the border and
+    the pixels just outside it. ``baseline`` is the same difference one pixel further out
+    (outside vs outside), which is what the frame does anyway. ``ratio`` is step / baseline:
+    close to 1 means no seam beyond the picture's own texture. The box needs at least
+    two pixels of frame around it.
+    """
+    y1, y2, x1, x2 = box
+    frame = np.asarray(frame, dtype=np.float32)
+    h, w = frame.shape[:2]
+    if y1 < 2 or x1 < 2 or y2 > h - 2 or x2 > w - 2 or y2 - y1 < 2 or x2 - x1 < 2:
+        raise ValueError("box must be at least 2 pixels away from the frame edge and 2 pixels in size")
+
+    def mean_abs(a, b):
+        return float(np.abs(a - b).mean())
+
+    pairs = [
+        (frame[y1, x1:x2], frame[y1 - 1, x1:x2], frame[y1 - 2, x1:x2]),
+        (frame[y2 - 1, x1:x2], frame[y2, x1:x2], frame[y2 + 1, x1:x2]),
+        (frame[y1:y2, x1], frame[y1:y2, x1 - 1], frame[y1:y2, x1 - 2]),
+        (frame[y1:y2, x2 - 1], frame[y1:y2, x2], frame[y1:y2, x2 + 1]),
+    ]
+    step = float(np.mean([mean_abs(i, o1) for i, o1, _ in pairs]))
+    baseline = float(np.mean([mean_abs(o1, o2) for _, o1, o2 in pairs]))
+    ratio = step / baseline if baseline > 0 else (1.0 if step == 0 else float("inf"))
+    return {"step": step, "baseline": baseline, "ratio": ratio}
