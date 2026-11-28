@@ -20,7 +20,7 @@ A scheduled run picks the **first unchecked item** below, builds it, tests it, t
 - [x] **5. Photo check.** `src/preprocess/photo_check.py` warns about small, blurry, dark or overexposed photos and about no face or several faces. Tests use synthetic images and a mocked detector.
 - [x] **6. Smoothing v2.** Add an adaptive filter (for example a one-euro filter) next to the fixed blend. Compare with `scripts/measure_mouth_jitter.py` and record the table in `notes/`.
 - [x] **7. Feathered mouth blend.** Replace the hard paste of the mouth patch with a feathered mask to soften the seam. Add a seam metric and test it.
-- [ ] **8. README rewrite.** Accurate, easy to skim: what works, a quick start, an architecture diagram, results, and an honest roadmap.
+- [x] **8. README rewrite.** Accurate, easy to skim: what works, a quick start, an architecture diagram, results, and an honest roadmap.
 - [ ] **9. Local demo app.** A small Gradio app: upload a photo and audio, choose smoothing, see the video. Runs the one-command runner underneath. Document how to start it.
 - [ ] **10. Evaluation harness.** Run a folder of photo and audio pairs, write a CSV of jitter and acceleration per result, and summarise it.
 
