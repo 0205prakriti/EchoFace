@@ -68,6 +68,69 @@ pip install pytest
 python -m pytest -q
 ```
 
+## How it fits together
+
+```
+ photo ──► photo_check ─┐
+                        ├─► run.py ─► patch_wav2lip ─► Wav2Lip inference.py ─► mp4
+ audio ──► audio_check ─┘     │         (4 notebook        │
+                              │          patches +         ├─ face detection (S3FD)
+                              │          --smooth_alpha)   ├─ mel-spectrogram
+                              └─ clean inputs              ├─ generator (Wav2Lip's)
+                                 (plain names, 16 kHz      └─ fixed blend of mouth patch
+                                  mono, first 30 s)
+
+ Not wired in yet:  smoothing.py (one-euro)   blend.py (feathered paste)
+```
+
+The checks print warnings only. They never stop a run.
+
+## Results
+
+All numbers come from the notes in `notes/`. The metric is the mean absolute pixel change
+between neighbouring frames over the mouth region (jitter) and how much the mouth really
+moves (motion). Lower jitter relative to motion is steadier.
+
+**Fixed blend** (`notes/03_smoothing_experiment.md`): real Wav2Lip GAN weights on CPU, one
+synthetic cartoon face and 6 seconds of synthetic speech-like audio, 147 frames.
+
+| alpha | Jitter | Motion | Jitter / motion |
+|---|---|---|---|
+| 1.0 (off) | 3.025 | 4.927 | 0.614 |
+| 0.7 | 2.238 | 4.177 | 0.536 |
+| 0.5 | 1.617 | 3.557 | 0.455 |
+
+Smoothing steadies the mouth but also flattens its movement.
+
+**One-euro vs fixed blend** (`notes/04_adaptive_smoothing.md`): applied after the fact to the
+baseline sample video (508 frames).
+
+| Filter | Jitter | Motion | Jitter / motion |
+|---|---|---|---|
+| none | 4.310 | 27.911 | 0.154 |
+| blend alpha 0.7 | 3.454 | 27.107 | 0.127 |
+| one-euro mc 1.0 b 0.05 | 3.080 | 26.994 | 0.114 |
+
+At about the same movement the one-euro filter has less jitter than the fixed blend.
+
+**Feathered blend** (`notes/05_feathered_blend.md`): on a synthetic frame the seam step at the
+box border drops from 80.02 (hard paste) to 1.60 with any feather above 0 pixels.
+
+**Limits:** these runs use one video or one synthetic face each, one run per setting, and no
+real photos. The metrics measure pixel change, not how natural the mouth looks, and lip sync
+was not measured. Judging real-photo quality by eye has not been done.
+
+## Roadmap
+- [x] Phase 1: Wav2Lip baseline (pretrained inference)
+- [ ] Phase 2: Understand and modify the architecture, single-image input. In progress:
+      architecture notes, one-command runner, input checks, smoothing experiments.
+- [ ] Phase 3: Improved generator (identity preservation, mouth sharpness)
+- [ ] Phase 4: Train a SyncNet-style sync discriminator (needs dataset access)
+- [ ] Phase 5: Real-time inference (needs measurements on a real GPU)
+
+Next small steps: a local demo app, a batch evaluation harness, wiring the one-euro filter
+and the feathered paste into the runner, and measuring lip sync at each smoothing setting.
+
 ## Repository layout
 ```
 echoface/
