@@ -1,49 +1,93 @@
-# EchoFace 🎙️
+# EchoFace
 
-> Turn any photo into a talking video, just add audio.
+Turn one photo and one audio clip into a lip-synced talking video.
 
-EchoFace is a deep learning pipeline that animates a face to match an input audio track. The end goal is a custom audio-visual fusion model with a lip-sync discriminator, built up in stages from a pretrained Wav2Lip baseline.
+EchoFace wraps a pretrained [Wav2Lip](https://github.com/Rudrabha/Wav2Lip) model with a
+one-command runner, input checks and mouth smoothing. The longer-term goal is a custom
+audio-visual model with its own lip-sync discriminator, built up in stages.
 
-## Phase 1: Wav2Lip baseline (complete)
+**Status:** early. The Wav2Lip baseline runs end to end. Everything else below is marked as
+working, partly working or not started.
 
-Ran pretrained Wav2Lip (GAN checkpoint) end-to-end on a Colab T4 GPU.
+## What works today
 
-**Result:** [`samples/wav2lip_baseline_result.mp4`](samples/wav2lip_baseline_result.mp4)
+| Part | State | Where |
+|---|---|---|
+| Wav2Lip baseline on a Colab T4 | Works. Result video is in the repo. | `notebooks/01_wav2lip_baseline.ipynb`, `samples/wav2lip_baseline_result.mp4` |
+| Own photo and audio on current Colab | Works. Patches four lines in Wav2Lip instead of pinning old `numpy` and `librosa`. | `notebooks/02_wav2lip_own_photo.ipynb` |
+| Idempotent Wav2Lip patch | Works. Fails loudly if Wav2Lip's code is not what it expects. | `src/inference/patch_wav2lip.py` |
+| One-command runner | Works up to the Wav2Lip call (dry run and input cleaning are tested). The full run needs the checkpoint, which is not in the repo. | `src/inference/run.py` |
+| Audio check | Works as a heuristic: warns about long, quiet, clipped, noise-like or music-like audio. | `src/preprocess/audio_check.py` |
+| Photo check | Works as a heuristic: warns about small, blurry, dark or overexposed photos, and no face or several faces. | `src/preprocess/photo_check.py` |
+| Fixed blend (`--smooth`) | Works, wired into the runner. | `src/inference/patch_wav2lip.py` |
+| One-euro smoothing | Module and comparison script only. Not wired into the runner. | `src/inference/smoothing.py` |
+| Feathered mouth blend | Module, seam metric and comparison script only. Not wired into the Wav2Lip patch. | `src/inference/blend.py` |
+| Tests and CI | Tests run on CPU without model weights, on every push. | `tests/`, `.github/workflows/tests.yml` |
 
-**Pipeline:** face video + audio → mel-spectrogram → face detection (S3FD) → Wav2Lip generator → lip-synced video
+Not started: a better generator, a trained sync discriminator, real-time inference, a demo
+app and a batch evaluation harness (see the roadmap).
 
-**Notebook:** [`notebooks/01_wav2lip_baseline.ipynb`](notebooks/01_wav2lip_baseline.ipynb)
+## Quick start
 
-**Your own photo and audio:** [`notebooks/02_wav2lip_own_photo.ipynb`](notebooks/02_wav2lip_own_photo.ipynb) runs on current Colab without pinning old `numpy` or `librosa`. It patches four lines in Wav2Lip instead.
+You need Python 3.10 or newer, `git` and `ffmpeg`. On a machine without a GPU the Wav2Lip
+step is slow but works.
 
-### What I learned
-- Wav2Lip was written for Python 3.6–3.8. On Colab's Python 3.12, `librosa` breaks against newer `numpy` because of removed aliases like `np.complex`, so the environment needs patching or pinning.
-- Observations on sync quality and mouth sharpness: _add yours here after reviewing the output_
-
-## Roadmap
-- [x] Phase 1: Wav2Lip baseline (pretrained inference)
-- [ ] Phase 2: Understand and modify the architecture, single-image input
-- [ ] Phase 3: Improved generator (identity preservation, mouth sharpness)
-- [ ] Phase 4: Train a SyncNet-style sync discriminator
-- [ ] Phase 5: Real-time inference
-
-## Stack
-PyTorch · OpenCV · librosa · Wav2Lip · Google Colab (T4)
-
-## Structure
+```bash
+git clone https://github.com/0205prakriti/echoface
+cd echoface
+pip install -r requirements.txt
 ```
-EchoFace/
+
+Download the `wav2lip_gan.pth` checkpoint (the steps are in
+`notebooks/02_wav2lip_own_photo.ipynb`) and place it at `Wav2Lip/checkpoints/wav2lip_gan.pth`.
+Then:
+
+```bash
+# Print every command without running anything
+python -m src.inference.run --photo face.jpg --audio talk.m4a --out result.mp4 --dry-run
+
+# Run it. Clones Wav2Lip at a pinned commit if the folder is missing.
+python -m src.inference.run --photo face.jpg --audio talk.m4a --out result.mp4 --smooth 0.7
+```
+
+`--smooth` is the blend weight of the new mouth patch: `1.0` is off, `0.7` is the default,
+`0.5` is very steady. The runner copies the inputs to plain file names, converts the audio to
+16 kHz mono, keeps the first 30 seconds and calls Wav2Lip without a shell.
+
+Check your inputs first if the result looks bad:
+
+```bash
+python -m src.preprocess.photo_check face.jpg
+python -m src.preprocess.audio_check talk.wav
+```
+
+Run the tests:
+
+```bash
+pip install pytest
+python -m pytest -q
+```
+
+## Repository layout
+```
+echoface/
 ├── notebooks/    # Colab notebooks
-├── src/          # preprocess / models / inference modules
-├── scripts/      # trace_shapes.py: runs random tensors through the models
-├── notes/        # architecture notes
+├── src/
+│   ├── inference/   # runner, Wav2Lip patch, smoothing, blend
+│   ├── preprocess/  # audio and photo checks
+│   └── models/      # adapted from Wav2Lip (non-commercial, study only)
+├── scripts/      # trace_shapes, jitter measurement, comparison scripts
+├── notes/        # architecture notes and experiments
+├── tests/        # pytest, CPU only, no weights needed
 ├── docs/         # early access landing page
 ├── samples/      # example outputs
 └── checkpoints/  # model weights (not tracked)
 ```
 
 ## Licensing
-`src/models/` is adapted from [Wav2Lip](https://github.com/Rudrabha/Wav2Lip), which allows personal, research and non-commercial use only. It is included here for study. Any commercial version of EchoFace must not use it.
+`src/models/` is adapted from [Wav2Lip](https://github.com/Rudrabha/Wav2Lip), which allows
+personal, research and non-commercial use only. It is included here for study. Any commercial
+version of EchoFace must not use it.
 
 ## Author
 [0205prakriti](https://github.com/0205prakriti)
